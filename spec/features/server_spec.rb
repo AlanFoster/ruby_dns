@@ -30,6 +30,7 @@ RSpec.describe "Ruby dns", type: :feature do
 
   after(:each) do
     kill_server
+    Process.waitpid(running_server)
   end
 
   def server_alive?
@@ -64,6 +65,25 @@ RSpec.describe "Ruby dns", type: :feature do
       )
 
       expect(assertable(resources)).to eql([{ttl: 400, ip: '255.255.255.255'}, {ttl: 400, ip: '127.0.0.1'}])
+    end
+  end
+
+  context 'when the domain name is unknown', focus: true do
+    it "successfully resolves no A records" do
+      expect(server_alive?).to be(true)
+
+      resolver = ::Resolv::DNS.new(
+        nameserver_port: [[host, port]],
+        search: ['missing.example'],
+        ndots: 1
+      )
+
+      resources = resolver.getresources(
+        "missing.example",
+        ::Resolv::DNS::Resource::IN::A
+      )
+
+      expect(assertable(resources)).to eql([])
     end
   end
 end

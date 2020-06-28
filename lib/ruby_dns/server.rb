@@ -27,6 +27,15 @@ module RubyDns
     TXT = 0x0010
   end
 
+  module ResponseCode
+    NO_ERROR = 0x0
+    FORMAT_ERROR = 0x1
+    SERVER_FAILURE = 0x2
+    NAME_ERROR = 0x3
+    NOT_IMPLEMENTED = 0x4
+    REFUSED = 0x5
+  end
+
   module ClassType
     IN = 0x01
     CS = 0x02
@@ -130,22 +139,7 @@ module RubyDns
         data, from = socket.recvfrom(512)
 
         request = Request.read(data)
-
-        records = request.questions.flat_map do |question|
-          results = lookup(available_zones, question)
-
-          results.map do |record|
-            ResourceRecord.new(
-              string_data: question.string_data,
-              question_type: question.question_type,
-              question_class: question.question_class,
-              ttl: record['ttl'],
-              rdlength: 4,
-              rdata: IPAddr.new(record['value']).to_i
-            )
-          end
-        end
-
+        records = resource_records_for(request.questions)
         response = Response.new(
           header: Header.new(
             id: request.header.id,
@@ -156,8 +150,9 @@ module RubyDns
             recursion_desired: 0,
             recursion_available: 0,
             z: 0,
-            response_code: 0,
-
+            response_code: (
+              has_domain?(request.questions[0].domain) ? ResponseCode::NO_ERROR : ResponseCode::NAME_ERROR
+            ),
             question_count: request.header.question_count,
             answer_count: records.count,
             name_server_count: 0,
@@ -185,6 +180,29 @@ module RubyDns
         origin = json['$origin']
         acc[origin] = json
       end
+    end
+
+    def resource_records_for(questions)
+      questions.flat_map do |question|
+        return [] unless has_domain?(question.domain)
+
+        results = lookup(available_zones, question)
+
+        results.map do |record|
+          ResourceRecord.new(
+            string_data: question.string_data,
+            question_type: question.question_type,
+            question_class: question.question_class,
+            ttl: record['ttl'],
+            rdlength: 4,
+            rdata: IPAddr.new(record['value']).to_i
+          )
+        end
+      end
+    end
+
+    def has_domain?(domain)
+      available_zones.key?(domain)
     end
 
     def lookup(available_zones, question)
