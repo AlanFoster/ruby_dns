@@ -1,0 +1,12 @@
+{
+  "$origin": "example.com.",
+  "$ttl": 3600,
+  "ns": [
+    { "host":  "ns1.example.com." },
+    { "host":  "ns2.example.com." }
+  ],
+  "a": [
+    { "name":  "@", "ttl": 400, "value": "255.255.255.255" },
+    { "name":  "@", "ttl": 400, "value": "127.0.0.1" }
+  ]
+}
