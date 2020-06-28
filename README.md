@@ -1,39 +1,46 @@
 # RubyDns
 
-Welcome to your new gem! In this directory, you'll find the files you need to be able to package up your Ruby library into a gem. Put your Ruby code in the file `lib/ruby_dns`. To experiment with that code, run `bin/console` for an interactive prompt.
+Simple DNS server written in Ruby to test writing a simple server with sockets and BinData.
+Definitely not production ready or feature complete.
 
-TODO: Delete this and the text above, and describe your gem
+## Testing
 
-## Installation
-
-Add this line to your application's Gemfile:
-
-```ruby
-gem 'ruby_dns'
+```
+bundle exec rspec
 ```
 
-And then execute:
+### Examples
 
-    $ bundle install
+Running DNS on port 53 requires the correct permissions:
 
-Or install it yourself as:
+```
+$ sudo -E ./examples/example.rb
+Starting server on 127.0.0.1:53 ...
+```
 
-    $ gem install ruby_dns
+Verifying with dig:
 
-## Usage
+```
+$ dig +time=10000 example.com @127.0.0.1
 
-TODO: Write usage instructions here
+; <<>> DiG 9.10.6 <<>> +time=10000 example.com @127.0.0.1
+;; global options: +cmd
+;; Got answer:
+;; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 13498
+;; flags: qr aa; QUERY: 1, ANSWER: 2, AUTHORITY: 0, ADDITIONAL: 0
 
-## Development
+;; QUESTION SECTION:
+;example.com.                   IN      A
 
-After checking out the repo, run `bin/setup` to install dependencies. Then, run `rake spec` to run the tests. You can also run `bin/console` for an interactive prompt that will allow you to experiment.
+;; ANSWER SECTION:
+example.com.            400     IN      A       255.255.255.255
+example.com.            400     IN      A       127.0.0.1
 
-To install this gem onto your local machine, run `bundle exec rake install`. To release a new version, update the version number in `version.rb`, and then run `bundle exec rake release`, which will create a git tag for the version, push git commits and tags, and push the `.gem` file to [rubygems.org](https://rubygems.org).
-
-## Contributing
-
-Bug reports and pull requests are welcome on GitHub at https://github.com/[USERNAME]/ruby_dns.
-
+;; Query time: 1 msec
+;; SERVER: 127.0.0.1#53(127.0.0.1)
+;; WHEN: Sun Jun 28 20:02:32 BST 2020
+;; MSG SIZE  rcvd: 83
+```
 
 ## License
 

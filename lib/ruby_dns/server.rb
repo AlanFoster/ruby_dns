@@ -93,6 +93,19 @@ module RubyDns
     end
   end
 
+  class ARecord < BinData::Record
+    endian :big
+
+    uint32 :rdata
+  end
+
+  class MXRecord < BinData::Record
+    endian :big
+
+    uint16 :preference, label: 'The preference given to the this resource record. Lower values are preferred'
+    stringz :exchange, label: 'Specifies a host willing to act as a mail exchange for the owner name'
+  end
+
   class ResourceRecord < BinData::Record
     endian :big
 
@@ -102,8 +115,14 @@ module RubyDns
     uint16 :question_class
     uint32 :ttl
 
-    uint16 :rdlength, label: 'The length of rdata in bytes'
-    uint32 :rdata
+    uint16 :rdlength, label: 'The length of rdata in bytes', value: proc { rdata.to_binary_s.bytes.length }
+    choice :rdata,
+           label: 'The record data - difference for each question_type',
+           selection: proc { question_type } do
+      a_record QuestionType::A
+      mx_record QuestionType::MX
+    end
+
   end
 
   class Request < BinData::Record
@@ -187,15 +206,14 @@ module RubyDns
         return [] unless has_domain?(question.domain)
 
         results = lookup(available_zones, question)
-
-        results.map do |record|
+        results.map do |result|
+          ttl, rdata = result
           ResourceRecord.new(
             string_data: question.string_data,
             question_type: question.question_type,
             question_class: question.question_class,
-            ttl: record['ttl'],
-            rdlength: 4,
-            rdata: IPAddr.new(record['value']).to_i
+            ttl: ttl,
+            rdata: rdata
           )
         end
       end
@@ -205,12 +223,40 @@ module RubyDns
       available_zones.key?(domain)
     end
 
+    def encode_domain(domain)
+      result = "".force_encoding("ASCII-8BIT")
+      domain.split(".").each do |chunk|
+        result += [chunk.length].pack('C')
+        result += chunk
+      end
+      result
+    end
+
     def lookup(available_zones, question)
       domain = question.domain
       zone = available_zones[domain]
 
       if question.question_type == QuestionType::A
-        zone['a']
+        records = zone.fetch('a', [])
+        records.map do |record|
+          [
+            record['ttl'],
+            ARecord.new(
+              rdata: IPAddr.new(record['value']).to_i
+            )
+          ]
+        end
+      elsif question.question_type == QuestionType::MX
+        records = zone.fetch('mx', [])
+        records.map do |record|
+          [
+            record['ttl'],
+            MXRecord.new(
+              preference: record['preference'],
+              exchange: encode_domain(record['exchange'])
+            )
+          ]
+        end
       else
         []
       end

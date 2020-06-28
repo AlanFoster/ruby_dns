@@ -8,5 +8,9 @@
   "a": [
     { "name":  "@", "ttl": 400, "value": "255.255.255.255" },
     { "name":  "@", "ttl": 400, "value": "127.0.0.1" }
+  ],
+  "mx": [
+    { "ttl":  1800, "preference": 1, "exchange": "mx1.example.com" },
+    { "ttl":  1800, "preference": 2, "exchange": "mx2.example.com" }
   ]
 }
