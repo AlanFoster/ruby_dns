@@ -65,32 +65,46 @@ module RubyDns
     uint16 :additional_record_count, label: 'Number of resource records in the additional records sections'
   end
 
+  class DomainString < BinData::Primitive
+    stringz :buffer
+
+    def get
+      result = ""
+      index = 0
+
+      while index < buffer.length
+        if index > 0
+          result += '.'
+        end
+        length = buffer[index].ord
+        result += buffer[index + 1..index + length]
+        index += length + 1
+      end
+
+      result + "."
+    end
+
+    def set(value)
+      result = "".force_encoding("ASCII-8BIT")
+      value.split(".").each do |chunk|
+        result += [chunk.length].pack('C')
+        result += chunk
+      end
+      self.buffer = result
+    end
+
+  end
+
   class Question < BinData::Record
     endian :big
 
     # A domain name is represented as a sequence of labels, where
     # each label consists of a length octet followed by that number of octets
     # The domain name ends with a zero length octet. Treating as null terminated for now.
-    stringz :string_data
+    domain_string :domain
 
     uint16 :question_type
     uint16 :question_class
-
-    def domain
-      result = ""
-      index = 0
-
-      while index < string_data.length
-        if index > 0
-          result += '.'
-        end
-        length = string_data[index].ord
-        result += string_data[index + 1..index + length]
-        index += length + 1
-      end
-
-      result + "."
-    end
   end
 
   class ARecord < BinData::Record
@@ -103,13 +117,13 @@ module RubyDns
     endian :big
 
     uint16 :preference, label: 'The preference given to the this resource record. Lower values are preferred'
-    stringz :exchange, label: 'Specifies a host willing to act as a mail exchange for the owner name'
+    domain_string :exchange, label: 'Specifies a host willing to act as a mail exchange for the owner name'
   end
 
   class ResourceRecord < BinData::Record
     endian :big
 
-    stringz :string_data
+    domain_string :domain
 
     uint16 :question_type
     uint16 :question_class
@@ -209,7 +223,7 @@ module RubyDns
         results.map do |result|
           ttl, rdata = result
           ResourceRecord.new(
-            string_data: question.string_data,
+            domain: question.domain,
             question_type: question.question_type,
             question_class: question.question_class,
             ttl: ttl,
@@ -221,15 +235,6 @@ module RubyDns
 
     def has_domain?(domain)
       available_zones.key?(domain)
-    end
-
-    def encode_domain(domain)
-      result = "".force_encoding("ASCII-8BIT")
-      domain.split(".").each do |chunk|
-        result += [chunk.length].pack('C')
-        result += chunk
-      end
-      result
     end
 
     def lookup(available_zones, question)
@@ -253,7 +258,7 @@ module RubyDns
             record['ttl'],
             MXRecord.new(
               preference: record['preference'],
-              exchange: encode_domain(record['exchange'])
+              exchange: record['exchange']
             )
           ]
         end
